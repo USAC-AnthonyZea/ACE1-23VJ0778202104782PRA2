@@ -1,0 +1,4 @@
+# Ningun archivo bin, exe y obj, deben subirse al repositorio
+*.BIN
+*.EXE
+*.OBJ
