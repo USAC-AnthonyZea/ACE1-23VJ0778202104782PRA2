@@ -3,6 +3,9 @@
 .STACK
 .DATA
 
+;; Variable num, que almacenara los datos numericos
+numero           db   05 dup (30)
+
 ;; Nueva linea
 new_linea       db 0a, "$"
 
@@ -46,9 +49,13 @@ prods_registrados db "Productos registrados:",0a,"$"
 
 ;; "Estructura producto"
 cod_prod    db    05 dup (0)
-cod_name    db    14 dup (0)
+cod_name    db    21 dup (0)
 cod_price   db    05 dup (0)
 cod_units   db    05 dup (0)
+
+;; numéricos
+num_price   dw    0000
+num_units   dw    0000
 
 ;; Archivo PRODUCTOS
 archivo_prods    db   "PROD.BIN",00
@@ -58,6 +65,18 @@ handle_prods     dw   0000
 .STARTUP
 ;; CODIGO
 inicio:
+                mov AX, 7e7
+		        call numAcadena
+                mov BX, 01
+		        mov CX, 0005
+                mov DX, offset numero
+                mov AH, 40
+                int 21
+
+                mov DX, offset new_linea
+                mov AH, 09
+                int 21
+
                 ;; ENCABEZADO INICIAL
                 mov DX, offset mensajeInicial
                 mov AH, 09                              
@@ -213,13 +232,13 @@ pedir_de_nuevo_name:
         mov AH, 0a
         int 21
 
-        ;; Verificar que el tamaño del codigo no sea mayor a 5
+        ;; Verificar que el tamaño del codigo no sea mayor a 16
         mov DI, offset buffer_entrada
         inc DI
         mov AL, [DI]
         cmp AL, 00
         je pedir_de_nuevo_name
-        cmp AL, 15
+        cmp AL, 20
         jb aceptar_tam_name
 
         ;; Salto de linea
@@ -243,7 +262,6 @@ copiar_nombre:
         inc SI
         inc DI
         loop copiar_nombre
-
 
         ;; Salto de linea
         mov DX, offset new_linea
@@ -295,6 +313,18 @@ copiar_price:
         mov AH, 09
         int 21
 
+        ;; Convertir el precio a numero
+        mov DI, offset cod_price
+		call cadenaAnum
+
+        ;; En AX, se encuentra el numero convertido
+		mov [num_price], AX
+
+        ;; Limpiamos la variable
+        mov DI, offset cod_price
+		mov CX, 0005
+		call memset
+
 ;; PEDIR PRECIO DEL PRODUCTO
 pedir_de_nuevo_units:
         mov DX, offset prompt_units
@@ -334,6 +364,18 @@ copiar_units:
         inc SI
         inc DI
         loop copiar_units
+
+        ;; Convertir las unidades a numero
+        mov DI, offset cod_units
+		call cadenaAnum
+
+        ;; En AX, se encuentra el numero convertido
+		mov [num_units], AX
+
+        ;; Limpiamos la variable
+        mov DI, offset cod_units
+		mov CX, 0005
+		call memset
 
         ;; Salto de linea
         mov DX, offset new_linea
@@ -378,9 +420,16 @@ guardar_handle_prod:
                 mov AH, 42
                 int 21
                 
-                ;; -> Escribimos el producto en el archivo
-                mov CX, 23
+                ;; -> ESCRIBIR EL PRODUCTO EN EL ARCHIVO
+                ;; -> Escribimos codigo y nombre del producto en el archivo
+                mov CX, 26
                 mov DX, offset cod_prod
+                mov AH, 40
+                int 21
+
+                ;; Escribimos precio y unidades del producto
+                mov CX, 0004
+                mov DX, offset num_price
                 mov AH, 40
                 int 21
 
@@ -409,13 +458,22 @@ mostrar_productos_archivo:
 
         ;; Leemos el archivo
 ciclo_mostrar:
+
+        ;; Colocamos el puntero en cierta posicion
         mov BX, [handle_prods]
-        mov CX, 23
+        mov CX, 26
         mov DX, offset cod_prod
 
         ;; Guardar producto en estructura
         mov AH, 3f
         int 21
+
+        ;; El puntero avanzo
+        mov BX, [handle_prods]
+		mov CX, 0004
+		mov DX, offset num_price
+		mov AH, 3f
+		int 21
 
         ;; ¿cuántos bytes leímos?
 		;; si se leyeron 0 bytes entonces se terminó el archivo...
@@ -452,6 +510,8 @@ menu_herramientas:
     jmp fin
                                             ;;SUBRUTINAS;;    
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;          Subrutina imprimir Estructura         ;;;;;;;;;;
 ;; ENTRADAS:
 ;; SALIDAS:
 ;;          o Impresion de estructura
@@ -478,6 +538,84 @@ poner_dolar_1:
             int 21
 
             ret
+
+;;;;;;;;;;          Subrutina numAcadena          ;;;;;;;;;;
+;; ENTRADAS
+;;        o AX -> numero a convertir
+;; SALIDAS
+;;        o [numero] -> numero convertido en cadena
+cadenaAnum:
+		mov AX, 0000    ; inicializar la salida
+		mov CX, 0005    ; inicializar contador
+		;;
+seguir_convirtiendo:
+		mov BL, [DI]
+		cmp BL, 00
+		je retorno_cadenaAnum
+		sub BL, 30      ; BL es el valor numérico del caracter
+		mov DX, 000a
+		mul DX          ; AX * DX -> DX:AX
+		mov BH, 00
+		add AX, BX 
+		inc DI          ; puntero en la cadena
+		loop seguir_convirtiendo
+retorno_cadenaAnum:
+		ret
+
+;;;;;;;;;;          Subrutina cadenaAnum          ;;;;;;;;;;
+;; ENTRADAS
+;;        o DI -> Direccion a una cadena
+;; SALIDAS
+;;        o AX -> numero convertido
+numAcadena:
+		mov CX, 0005
+		mov DI, offset numero
+ciclo_poner30s:
+		mov BL, 30
+		mov [DI], BL
+		inc DI
+		loop ciclo_poner30s
+		;; tenemos '0' en toda la cadena
+		mov CX, AX    ; inicializar contador
+		mov DI, offset numero
+		add DI, 0004
+		;;
+ciclo_convertirAcadena:
+		mov BL, [DI]
+		inc BL
+		mov [DI], BL
+		cmp BL, 3a
+		je aumentar_siguiente_digito_primera_vez
+		loop ciclo_convertirAcadena
+		jmp retorno_convertirAcadena
+aumentar_siguiente_digito_primera_vez:
+		push DI
+aumentar_siguiente_digito:
+		mov BL, 30     ; poner en '0' el actual
+		mov [DI], BL
+		dec DI         ; puntero a la cadena
+		mov BL, [DI]
+		inc BL
+		mov [DI], BL
+		cmp BL, 3a
+		je aumentar_siguiente_digito
+		pop DI         ; se recupera DI
+		loop ciclo_convertirAcadena
+retorno_convertirAcadena:
+		ret
+
+
+;;;;;;;;;;          Subrutina memset          ;;;;;;;;;;
+;; ENTRADAS
+;;        o DI -> Direccion de la cadena
+;;        o CX -> Tamaño de la cadena
+memset:
+ciclo_memset:
+		mov AL, 00
+		mov [DI], AL
+		inc DI
+		loop ciclo_memset
+		ret
 
 fin:
 .EXIT
