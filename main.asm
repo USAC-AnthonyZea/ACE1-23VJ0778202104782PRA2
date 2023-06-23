@@ -10,13 +10,13 @@ numero           db   05 dup (30)
 new_linea       db 0a, "$"
 
 ;; Variables Iniciales
-mensajeInicial  db "San Carlos de Guatemala", 0ah, "Facultad de Ingenieria", 0ah, "Escuela de Vacaciones", 0ah, "Arquitectura de Computadoras y Ensambladores 1", 0ah, 0ah, "Nombre: Anthony Samuel Zea Herrera", 0ah,"Carne:  202104782", 0ah, "$"
+mensajeInicial  db "Universidad de San Carlos de Guatemala", 0ah, "Facultad de Ingenieria", 0ah, "Escuela de Vacaciones", 0ah, "Arquitectura de Computadoras y Ensambladores 1", 0ah, 0ah, "Nombre: Anthony Samuel Zea Herrera", 0ah,"Carne:  202104782", 0ah, "$"
 menuInicial     db 0ah, "Bienvenido al sistema", 0ah, "- (V)entas", 0ah, "- (P)roductos", 0ah, "- (H)erramientas", 0ah, "$"
 
 ;; Prompts para pedir al usuario
 prompt               db "Elija una opcion: ", 0ah, "$"
 prompt_code          db "Codigo: ", "$"
-prompt_name          db "Nombre: ", "$"
+prompt_name          db "Descripcion: ", "$"
 prompt_price         db "Precio: ", "$"
 prompt_units         db "Unidades: ", "$"
 
@@ -39,6 +39,9 @@ sub2_prod   db "========", 0a, "$"
 buffer_entrada   db  20, 00
                  db  20 dup (0)
 
+;; Buffer de ceros
+ceros            db     2a dup (0)
+
 ;; Variables para productos
 mostrar_prod   db "(M)ostrar producto", 0a, "$"
 ingresar_prod  db "(I)ngresar producto", 0a, "$"
@@ -52,6 +55,10 @@ cod_prod    db    05 dup (0)
 cod_name    db    21 dup (0)
 cod_price   db    05 dup (0)
 cod_units   db    05 dup (0)
+
+;; Variables temporales
+cod_prod_temp    db    05 dup (0)
+puntero_temp     dw    0000
 
 ;; numéricos
 num_price   dw    0000
@@ -149,6 +156,7 @@ menu_productos:
 
         ;; Comparamos el valor ingresado con B, para borrar un producto
         cmp AL, 62 ;;; -> 62 = B  
+        je eliminar_producto_archivo
 
         ;; Comparamos el valor ingresado con E, para editar un producto
         cmp AL, 65 ;;; -> 65 = E
@@ -223,6 +231,11 @@ copiar_codigo:
         mov AH, 09
         int 21
 
+        ;; Limpiamos la variable
+        mov DI, offset cod_prod
+		mov CX, 0005
+		call memset
+
 ;; PEDIR NOMBRE DEL PRODUCTO
 pedir_de_nuevo_name:
         mov DX, offset prompt_name
@@ -267,6 +280,11 @@ copiar_nombre:
         mov DX, offset new_linea
         mov AH, 09
         int 21
+
+        ;; Limpiamos la variable
+        mov DI, offset cod_name
+		mov CX, 0005
+		call memset
 
 ;; PEDIR PRECIO DEL PRODUCTO
 pedir_de_nuevo_precio:
@@ -447,6 +465,16 @@ mostrar_productos_archivo:
         mov AH, 09
         int 21
 
+        ;; Salto de linea
+        mov DX, offset prods_registrados
+        mov AH, 09
+        int 21
+
+        ;; Salto de linea
+        mov DX, offset new_linea
+        mov AH, 09
+        int 21
+
         ;; Abrimos el archivo
         mov AL, 02
         mov AH, 3d
@@ -464,7 +492,7 @@ ciclo_mostrar:
         mov CX, 26
         mov DX, offset cod_prod
 
-        ;; Guardar producto en estructura
+        ;; Guardamos el producto a mostrar
         mov AH, 3f
         int 21
 
@@ -472,7 +500,9 @@ ciclo_mostrar:
         mov BX, [handle_prods]
 		mov CX, 0004
 		mov DX, offset num_price
-		mov AH, 3f
+		
+        ;; Guardamos el producto a mostrar
+        mov AH, 3f
 		int 21
 
         ;; ¿cuántos bytes leímos?
@@ -482,12 +512,149 @@ ciclo_mostrar:
         ;; Verificamos si el archivo ya esta vacio
         je fin_mostrar
 
+        ;; Verificamos si es un producto valido para mostrar
+        mov AL, 00
+        cmp [cod_prod], AL
+        je ciclo_mostrar
+
         ;; Producto en estructura
         call imprimir_estructura
         jmp ciclo_mostrar
 
 fin_mostrar:
         jmp menu_productos
+
+;; MENU PARA ELIMINAR UN PRODUCTO
+eliminar_producto_archivo:
+
+    mov DX, 0000
+    mov [puntero_temp], DX
+    
+    pedir_de_nuevo_codigo2:
+        ;;; PEDIMOS EL CODIGO
+        mov DX, offset prompt_code
+        mov AH, 09
+        int 21
+        
+        mov DX, offset buffer_entrada
+        mov AH, 0a
+        int 21
+
+        ;; Verificar que el tamaño del codigo no sea mayor a 5
+        mov DI, offset buffer_entrada
+        inc DI
+        mov AL, [DI]
+        cmp AL, 00
+        je pedir_de_nuevo_codigo2
+        cmp AL, 06
+        jb aceptar_tam_cod2
+
+        ;; Salto de linea
+        mov DX, offset new_linea
+        mov AH, 09
+        int 21
+        jmp pedir_de_nuevo_codigo2
+
+    ;; mover al campo codigo en la estructura
+aceptar_tam_cod2:
+        mov SI, offset cod_prod_temp
+        mov DI, offset buffer_entrada
+        inc DI
+        mov CH, 00
+        mov CL, [DI]
+        inc DI                                      ; me posiciono en el contenido del buffer
+
+copiar_codigo2:  
+        mov AL, [DI]
+        mov [SI], AL
+        inc SI
+        inc DI
+        loop copiar_codigo2
+
+        ;; Salto de linea
+        mov DX, offset new_linea
+        mov AH, 09
+        int 21
+
+        ;; Limpiamos la variable
+        mov DI, offset cod_prod
+		mov CX, 0005
+		call memset
+
+        ;; Abrimos el archivo
+        mov AL, 02                  ; lectura/escritura
+        mov DX, offset archivo_prods
+		mov AH, 3d
+		int 21
+        mov [handle_prods], AX
+
+        ;; Revisar si existe el producto
+ciclo_encontrar:
+
+    ;; Leemos los primeros bytes ---> Codigo, name
+    mov BX, [handle_prods]
+    mov CX, 26
+    mov DX, offset cod_prod
+    mov AH, 3f
+    int 21
+
+    ;; Leemos los segundos bytes ---> preio, unidades
+    mov BX, [handle_prods]
+    mov CX, 4
+    mov DX, offset num_price
+    mov AH, 3f
+    int 21
+
+    ;; Verificamos si ya se leyo todo el archivo
+    cmp CX, 0000
+    je finalizar_borrar
+
+    ;; Avanzamos con el puntero temporal
+    mov DX, [puntero_temp]
+    add DX, 2a
+    mov [puntero_temp], DX
+
+    ;; Verificamos si es un producto valido
+    mov AL, 00
+    cmp [cod_prod], AL
+    je ciclo_encontrar
+
+    ;; Verificamos la cadena (codigo)
+    mov SI, offset cod_prod_temp
+    mov DI, offset cod_prod
+    mov CX, 0005
+    call cadenas_iguales
+
+    ;; Si el valor es 0FF
+    cmp DL, 0ff
+    je borrar_encontrado
+    jmp ciclo_encontrar
+
+borrar_encontrado:
+
+    ;; Nos posicionamos sobre el producto que queremos borrar
+    mov DX, [puntero_temp]
+    sub DX, 2a
+    mov CX, 0000
+    mov BX, [handle_prods]
+    mov AL, 00
+    mov AH, 42
+    int 21
+
+    ;; Puntero posicionado
+    ;; Eliminamos y asignamos 00
+    mov CX, 2a
+    mov DX, offset ceros
+    mov AH, 40
+    int 21
+
+finalizar_borrar:
+    ;; Cerramos el archivo
+    mov BX, [handle_prods]
+    mov AH, 3e
+    int 21
+
+    jmp menu_productos
 
 ;;; MENU VENTAS
 menu_ventas:
@@ -516,28 +683,63 @@ menu_herramientas:
 ;; SALIDAS:
 ;;          o Impresion de estructura
 imprimir_estructura:
-    mov DI, offset cod_name
-ciclo_poner_dolar_1:
+    mov DI, offset cod_prod
+
+    ciclo_poner_dolar_1:
+
         mov AL, [DI]
         cmp AL, 00
         je poner_dolar_1
         inc DI
         jmp ciclo_poner_dolar_1
-poner_dolar_1:
-            mov AL, 24          ; -> 24 = dolar ($)
-            mov [DI], AL
 
-            ;; Imprimimos normal
-            mov DX, offset cod_name
-            mov AH, 09
-            int 21
+        poner_dolar_1:
+                    mov AL, 24                      ; -> 24 = dolar ($)
+                    mov [DI], AL
 
-            ;; Salto de linea
-            mov DX, offset new_linea
-            mov AH, 09
-            int 21
+                    ;; Imprimimos normal
+                    mov DX, offset prompt_code
+                    mov AH, 09
+                    int 21
 
-            ret
+                    mov DX, offset cod_prod
+                    mov AH, 09
+                    int 21
+
+                    ;; Salto de linea
+                    mov DX, offset new_linea
+                    mov AH, 09
+                    int 21
+    
+    mov DI, offset cod_name
+
+    ciclo_poner_dolar_2:
+
+        mov AL, [DI]
+        cmp AL, 00
+        je poner_dolar_2
+        inc DI
+        jmp ciclo_poner_dolar_2
+
+        poner_dolar_2:
+                    mov AL, 24                      ; -> 24 = dolar ($)
+                    mov [DI], AL
+
+                    mov DX, offset prompt_name
+                    mov AH, 09
+                    int 21
+
+                    ;; Imprimimos normal
+                    mov DX, offset cod_name
+                    mov AH, 09
+                    int 21
+
+                    ;; Salto de linea
+                    mov DX, offset new_linea
+                    mov AH, 09
+                    int 21
+
+    ret
 
 ;;;;;;;;;;          Subrutina numAcadena          ;;;;;;;;;;
 ;; ENTRADAS
@@ -545,64 +747,70 @@ poner_dolar_1:
 ;; SALIDAS
 ;;        o [numero] -> numero convertido en cadena
 cadenaAnum:
-		mov AX, 0000    ; inicializar la salida
-		mov CX, 0005    ; inicializar contador
-		;;
-seguir_convirtiendo:
-		mov BL, [DI]
-		cmp BL, 00
-		je retorno_cadenaAnum
-		sub BL, 30      ; BL es el valor numérico del caracter
-		mov DX, 000a
-		mul DX          ; AX * DX -> DX:AX
-		mov BH, 00
-		add AX, BX 
-		inc DI          ; puntero en la cadena
-		loop seguir_convirtiendo
-retorno_cadenaAnum:
-		ret
+    mov AX, 0000    ; inicializar la salida
+    mov CX, 0005    ; inicializar contador
+		
+    seguir_convirtiendo:
+        mov BL, [DI]
+        cmp BL, 00
+        je retorno_cadenaAnum
+        sub BL, 30      ; BL es el valor numérico del caracter
+        mov DX, 000a
+        mul DX          ; AX * DX -> DX:AX
+        mov BH, 00
+        add AX, BX 
+        inc DI          ; puntero en la cadena
+        loop seguir_convirtiendo
+        retorno_cadenaAnum:
+            ret
 
 ;;;;;;;;;;          Subrutina cadenaAnum          ;;;;;;;;;;
 ;; ENTRADAS
-;;        o DI -> Direccion a una cadena
+;;        o AX -> número a convertir
 ;; SALIDAS
-;;        o AX -> numero convertido
+;;        o [numero] -> numero convertido en cadena
 numAcadena:
-		mov CX, 0005
-		mov DI, offset numero
-ciclo_poner30s:
-		mov BL, 30
-		mov [DI], BL
-		inc DI
-		loop ciclo_poner30s
-		;; tenemos '0' en toda la cadena
-		mov CX, AX    ; inicializar contador
-		mov DI, offset numero
-		add DI, 0004
-		;;
-ciclo_convertirAcadena:
-		mov BL, [DI]
-		inc BL
-		mov [DI], BL
-		cmp BL, 3a
-		je aumentar_siguiente_digito_primera_vez
-		loop ciclo_convertirAcadena
-		jmp retorno_convertirAcadena
-aumentar_siguiente_digito_primera_vez:
-		push DI
-aumentar_siguiente_digito:
-		mov BL, 30     ; poner en '0' el actual
-		mov [DI], BL
-		dec DI         ; puntero a la cadena
-		mov BL, [DI]
-		inc BL
-		mov [DI], BL
-		cmp BL, 3a
-		je aumentar_siguiente_digito
-		pop DI         ; se recupera DI
-		loop ciclo_convertirAcadena
-retorno_convertirAcadena:
-		ret
+    
+    mov CX, 0005
+    mov DI, offset numero
+
+    ciclo_poner30s:
+        mov BL, 30
+        mov [DI], BL
+        inc DI
+        loop ciclo_poner30s
+        ;; tenemos '0' en toda la cadena
+
+        mov CX, AX                              ; inicializar contador
+        mov DI, offset numero
+        add DI, 0004
+		
+        ciclo_convertirAcadena:
+            mov BL, [DI]
+            inc BL
+            mov [DI], BL
+            cmp BL, 3a
+            je aumentar_siguiente_digito_primera_vez
+            loop ciclo_convertirAcadena
+            jmp retorno_convertirAcadena
+
+            aumentar_siguiente_digito_primera_vez:
+                push DI
+
+                aumentar_siguiente_digito:
+                    mov BL, 30     ; poner en '0' el actual
+                    mov [DI], BL
+                    dec DI         ; puntero a la cadena
+                    mov BL, [DI]
+                    inc BL
+                    mov [DI], BL
+                    cmp BL, 3a
+                    je aumentar_siguiente_digito
+                    pop DI         ; se recupera DI
+                    loop ciclo_convertirAcadena
+
+    retorno_convertirAcadena:
+    ret
 
 
 ;;;;;;;;;;          Subrutina memset          ;;;;;;;;;;
@@ -616,6 +824,31 @@ ciclo_memset:
 		inc DI
 		loop ciclo_memset
 		ret
+
+;;;;;;;;;;          Subrutina cadenas_iguales         ;;;;;;;;;;
+;; ENTRADAS
+;;        o SI -> direccion a cadena 1
+;;        o DI -> direccion a cadena 2
+;;        o CX -> tamaño maximo
+;; SALIDAS
+;;        o DL -> 00 si no son iguales 
+;;               0ff si si son iguales
+
+cadenas_iguales:
+    ciclo_cadenas_iguales:
+        mov AL, [SI]
+        cmp [DI], AL
+        jne no_son_iguales
+        inc DI
+        inc SI
+        loop ciclo_cadenas_iguales
+        mov DL, 0ff
+    ret
+
+no_son_iguales:
+    mov DL, 00
+    ret
+
 
 fin:
 .EXIT
