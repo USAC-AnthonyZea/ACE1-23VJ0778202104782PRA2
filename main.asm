@@ -25,6 +25,7 @@ titulo_venta        db 0ah, "MENU VENTAS", 0ah, "$"
 titulo_producto     db 0ah, "MENU PRODUCTOS", 0ah, "$"
 titulo_herramientas db 0ah, "MENU HERRAMIENTAS", 0ah, "$"
 titulo_prod         db 0ah, "Producto", 0ah, "$"
+titulo_vent         db 0ah, "Venta", 0ah, "$"
 
 ;; Variable temporal para opcion de menu
 temp db 00, "$"
@@ -34,6 +35,8 @@ sub_ven     db "===========", 0a, "$"
 sub_pro     db "==============", 0a, "$"
 sub_her     db "=================", 0a, "$"
 sub2_prod   db "========", 0a, "$"
+sub3_prod   db "=====", 0a, "$"
+linea       db "---------------------------------", 0a, "$"
 
 ;; Buffer de entrada
 buffer_entrada   db  20, 00
@@ -67,6 +70,27 @@ num_units   dw    0000
 ;; Archivo PRODUCTOS
 archivo_prods    db   "PROD.BIN",00
 handle_prods     dw   0000
+
+; Estructura de venta
+    diaVenta        db 01 dup (0)
+    mesVenta        db 01 dup (0)
+    anioVenta       dw 00
+    horaVenta       db 01 dup (0)
+    minutoVenta     db 01 dup (0)
+    
+    codigoVenta     db 05 dup (0)
+    unidadesVenta   db 05 dup (0)
+
+    numeroUnidadesVenta   dw 0000
+    
+    precioTotalVenta    dw 0000
+    contadorItemsVenta  db 0
+
+    separadorVentas     db "$"
+    finalizarVenta      db "fin"
+
+    archivoVentas       db "VENT.BIN", 00
+    handleVentas        dw  0000h
 
 .CODE
 .STARTUP
@@ -231,10 +255,10 @@ copiar_codigo:
         mov AH, 09
         int 21
 
-        ;; Limpiamos la variable
-        mov DI, offset cod_prod
-		mov CX, 0005
-		call memset
+        ;; ;; Limpiamos la variable
+        ;; mov DI, offset cod_prod
+		;; mov CX, 0005
+		;; call memset
 
 ;; PEDIR NOMBRE DEL PRODUCTO
 pedir_de_nuevo_name:
@@ -281,10 +305,10 @@ copiar_nombre:
         mov AH, 09
         int 21
 
-        ;; Limpiamos la variable
-        mov DI, offset cod_name
-		mov CX, 0005
-		call memset
+        ;; ;; Limpiamos la variable
+        ;; mov DI, offset cod_name
+		;; mov CX, 0005
+		;; call memset
 
 ;; PEDIR PRECIO DEL PRODUCTO
 pedir_de_nuevo_precio:
@@ -576,10 +600,10 @@ copiar_codigo2:
         mov AH, 09
         int 21
 
-        ;; Limpiamos la variable
-        mov DI, offset cod_prod
-		mov CX, 0005
-		call memset
+        ;; ;; Limpiamos la variable
+        ;; mov DI, offset cod_prod
+		;; mov CX, 0005
+		;; call memset
 
         ;; Abrimos el archivo
         mov AL, 02                  ; lectura/escritura
@@ -664,7 +688,245 @@ menu_ventas:
     mov DX, offset sub_ven
     mov AH, 09                              
     int 21
-    jmp fin
+
+;; SUBRUTINA DE REGISTRAR VENTAS
+ventas_registrar:
+    ;; Salto de linea
+    mov DX, offset new_linea
+    mov AH, 09
+    int 21
+    mov DX, offset linea
+    mov AH, 09
+    int 21
+    ;; Salto de linea
+    mov DX, offset new_linea
+    mov AH, 09
+    int 21
+
+    ; Reestablecer el contador de items en 1.
+    mov DL, 0001
+    mov [contadorItemsVenta], DL
+
+    obtener_fecha:
+        ; Obtener la fecha actual
+        mov AH, 2a
+        int 21
+
+        ; Guardar la fecha
+        mov [diaVenta], DL
+        mov [mesVenta], DH
+        mov [anioVenta], CX
+
+    obtener_hora:
+        ; Obtener la hora actual
+        mov AH, 2c
+        int 21
+
+        ; Guardar la hora actual
+        mov [horaVenta], CH
+        mov [minutoVenta], CL
+
+    abrir_archivo_ventas:
+        ; Intentar abrir el archivo de productos
+        mov AL, 02
+        mov AH, 3d
+        mov DX, offset archivoVentas
+        int 21
+
+        ; Si no existe, crearlo
+        jc  crear_archivo_ventas
+
+        ; Si existe, guardar el handle
+        jmp guardar_handle_ventas
+
+    crear_archivo_ventas:
+        ; Crear el archivo de ventas
+        mov CX, 0000
+        mov DX, offset archivoVentas
+        mov AH, 3c
+        int 21
+    
+    guardar_handle_ventas:
+        ; Guardar el handle del archivo
+        mov [handleVentas], AX
+        mov BX, [handleVentas]
+
+        ; Mover el puntero del archivo al final
+        mov CX, 0000
+        mov DX, 0000
+        mov AL, 02
+        mov AH, 42
+        int 21
+
+    escribir_fecha_hora:
+        ; Escribir la fecha y hora en el archivo
+        mov CX, 06
+        mov DX, offset diaVenta
+        mov AH, 40
+        int 21
+
+        jmp leer_codigo_venta
+
+    solicitar_item:
+        leer_codigo_venta:
+            ;; Salto de linea
+            mov DX, offset new_linea
+            mov AH, 09
+            int 21
+            ;; Salto de linea
+            mov DX, offset prompt_code
+            mov AH, 09
+            int 21
+
+            mov DX, offset buffer_entrada
+            mov AH, 0a
+            int 21
+
+            ; Verificar longitud del codigo (maximo 4 caracteres y minimo 1 caracter)
+            mov DI, offset buffer_entrada
+            inc DI
+            mov AL, [DI]
+            cmp AL, 00
+            je leer_codigo_venta
+            cmp AL, 04
+            ja leer_codigo_venta
+
+            ; Verificar si es 'fin'
+            mov SI, offset finalizarVenta
+            mov DI, offset buffer_entrada
+            inc DI ; Saltar el primer byte
+            mov CL, [DI]
+            inc DI ; Saltar el segundo byte
+            call cadenas_iguales
+            cmp DL, 0ff
+            je finalizar_venta
+
+            ; Guardar el codigo del producto
+            mov SI, offset codigoVenta
+            mov DI, offset buffer_entrada
+            inc DI ; Saltar el primer byte
+            mov CH, 00
+            mov CL, [DI] ; Cantidad de bytes leidos
+            inc DI ; Saltar el segundo byte: Bytes leidos
+            call copiar_variable
+
+        leer_unidades_venta:
+            ;; Salto de linea
+            mov DX, offset new_linea
+            mov AH, 09
+            int 21
+            ;; Salto de linea
+            mov DX, offset prompt_units
+            mov AH, 09
+            int 21
+
+            ; Leer las unidades del producto
+            mov DX, offset buffer_entrada
+            mov AH, 0a
+            int 21
+
+            ; Verificar longitud de las unidades (maximo 5 caracteres y minimo 1 caracter)
+            mov DI, offset buffer_entrada
+            inc DI
+            mov AL, [DI]
+            cmp AL, 00
+            je leer_unidades_venta
+            cmp AL, 05
+            ja leer_unidades_venta
+
+            ; Guardar las unidades del producto
+            mov SI, offset unidadesVenta
+            mov DI, offset buffer_entrada
+            inc DI ; Saltar el primer byte
+            mov CH, 00
+            mov CL, [di] ; Cantidad de bytes leidos
+            inc DI ; Saltar el segundo byte: Bytes leidos
+            call copiar_variable
+
+            ; Convertir el precio a numero
+            mov DI, offset unidadesVenta
+            call cadenaAnum
+            mov [numeroUnidadesVenta], AX
+
+            ; Limpiar la variable unidadesProducto
+            mov DI, offset unidadesVenta
+            mov CX, 0005
+            call memset
+
+            jmp escribir_nuevo_item
+
+    escribir_nuevo_item:
+        ; 1. Escribir el codigo del producto
+        mov BX, [handleVentas]
+        mov CX, 0005
+        mov DX, offset codigoVenta
+        mov AH, 40
+        int 21
+
+        ; 2. Escribir las unidades del producto (Es un numero)
+        mov BX, [handleVentas]
+        mov CX, 0002
+        mov DX, offset numeroUnidadesVenta
+        mov AH, 40
+        int 21
+        
+        ; Limpiar la variable codigoVenta
+        mov DI, offset codigoVenta
+        mov CX, 0005
+        call memset
+
+        ; Limpiar la variable unidadesVenta
+        mov DI, offset unidadesVenta
+        mov CX, 0005
+        call memset
+
+        ; Limpiar la variable numeroUnidadesVenta
+        mov DX, 0000
+        mov [numeroUnidadesVenta], DX
+
+        ; Incrementar y comparar el numero de items agregados actualmente
+        ; Maximo de 10 items por venta
+        
+        mov DX, offset new_linea
+        mov AH, 09
+        int 21
+        mov DX, offset new_linea
+        mov AH, 09
+        int 21
+        
+        mov DL, contadorItemsVenta
+        cmp DL, 000a
+        je finalizar_venta
+
+        inc DL
+        mov [contadorItemsVenta], DL
+        jmp solicitar_item
+
+    finalizar_venta:
+        ; Escribir el separador de ventas
+        mov BX, [handleVentas]
+        mov CX, 0001
+        mov DX, offset separadorVentas
+        mov AH, 40
+        int 21
+
+        ; Cerrar el archivo
+        mov AH, 3e
+        int 21
+
+    ;; Salto de linea
+    mov DX, offset new_linea
+    mov AH, 09
+    int 21
+    mov DX, offset linea
+    mov AH, 09
+    int 21
+    ;; Salto de linea
+    mov DX, offset new_linea
+    mov AH, 09
+    int 21
+
+    jmp menu_ventas
 
 ;;; MENU HERRAMIENTAS
 menu_herramientas:
@@ -682,6 +944,7 @@ menu_herramientas:
 ;; ENTRADAS:
 ;; SALIDAS:
 ;;          o Impresion de estructura
+
 imprimir_estructura:
     mov DI, offset cod_prod
 
@@ -746,6 +1009,7 @@ imprimir_estructura:
 ;;        o AX -> numero a convertir
 ;; SALIDAS
 ;;        o [numero] -> numero convertido en cadena
+
 cadenaAnum:
     mov AX, 0000    ; inicializar la salida
     mov CX, 0005    ; inicializar contador
@@ -769,6 +1033,7 @@ cadenaAnum:
 ;;        o AX -> número a convertir
 ;; SALIDAS
 ;;        o [numero] -> numero convertido en cadena
+
 numAcadena:
     
     mov CX, 0005
@@ -817,6 +1082,7 @@ numAcadena:
 ;; ENTRADAS
 ;;        o DI -> Direccion de la cadena
 ;;        o CX -> Tamaño de la cadena
+
 memset:
 ciclo_memset:
 		mov AL, 00
@@ -849,6 +1115,16 @@ no_son_iguales:
     mov DL, 00
     ret
 
+;;;;;;;;;;          Subrutina copiar_variable         ;;;;;;;;;;
+;; ENTRADAS
+;;          o 
+copiar_variable:
+    mov AL, [DI]
+    mov [SI], AL
+    inc SI
+    inc DI
+    loop copiar_variable
+    ret
 
 fin:
 .EXIT
