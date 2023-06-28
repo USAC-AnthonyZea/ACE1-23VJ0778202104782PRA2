@@ -37,22 +37,22 @@ nuevaLinea                  db 0a, "$"
 
 ;; Variables Iniciales y Finales
 mensajeInicial              db "Universidad de San Carlos de Guatemala", 0ah, "Facultad de Ingenieria", 0ah, "Escuela de Vacaciones", 0ah, "Arquitectura de Computadoras y Ensambladores 1", 0ah, 0ah, "Nombre: Anthony Samuel Zea Herrera", 0ah,"Carne:  202104782", 0ah, "$"
-menuInicial                 db 0ah, "Bienvenido al sistema", 0ah, "- (V)entas", 0ah, "- (P)roductos", 0ah, "- (H)erramientas", 0ah, "$"
+menuInicial                 db 0ah, "      BIENVENIDO AL SISTEMA      ", 0ah, 0ah, "- (V)entas", 0ah, "- (P)roductos", 0ah, "- (H)erramientas", 0ah, "- (S)alir", 0ah, "$"
 mensajeFinal                db "Vuelva pronto", 0ah, "$"
 
 ;; Prompts para pedir al usuario
-prompt                      db "Elija una opcion: ", 0ah, "$"
+prompt                      db "Elija una opcion: ", "$"
 prompt_code                 db "Codigo: ", "$"
 prompt_name                 db "Descripcion: ", "$"
 prompt_price                db "Precio: ", "$"
 prompt_units                db "Unidades: ", "$"
 
 ;; Variables para acceso a menus
-titulo_venta                db 0ah, "MENU VENTAS", 0ah, "$"
-titulo_producto             db 0ah, "MENU PRODUCTOS", 0ah, "$"
-titulo_herramientas         db 0ah, "MENU HERRAMIENTAS", 0ah, "$"
-titulo_prod                 db 0ah, "Producto", 0ah, "$"
-titulo_vent                 db 0ah, "Venta", 0ah, "$"
+titulo_venta                db 0ah, "       MENU VENTAS          ", 0ah, "$"
+titulo_producto             db 0ah, "       MENU PRODUCTOS       ", 0ah, "$"
+titulo_herramientas         db 0ah, "       MENU HERRAMIENTAS    ", 0ah, "$"
+titulo_prod                 db 0ah, "       Ingreso Producto     ", 0ah, "$"
+titulo_vent                 db 0ah, "          Ingreso Venta     ", 0ah, "$"
 sub_vent                    db      "=====", 0a, "$"
 
 ;; Variable temporal para opcion de menu
@@ -65,6 +65,8 @@ sub_her                     db "=================", 0a, "$"
 sub2_prod                   db "========", 0a, "$"
 sub3_prod                   db "=====", 0a, "$"
 linea                       db "---------------------------------", 0a, "$"
+linea2                      db "_________________________________", 0a, "$"
+linea3                      db "=================================", 0a, "$"
 
 ;; Buffer de entrada
 buffer_entrada              db  20, 00
@@ -76,10 +78,10 @@ ceros                       db     2a dup (0)
 ;; Variables para productos
 mostrar_prod                db "- (M)ostrar producto", 0a, "$"
 ingresar_prod               db "- (I)ngresar producto", 0a, "$"
-editar_prod                 db "- (E)ditar producto", 0a, "$"
 borrar_prod                 db "- (B)orrar producto", 0a, "$"
 
-prods_registrados           db "Productos registrados:",0a,"$"
+prods_registrados           db "       Productos registrados",0a,"$"
+eliminar_registrados        db "       Eliminar producto    ",0a,"$"
 no_existencias              db "Sin existencias", 0a, "$"
 
 ;; "Estructura producto"
@@ -100,7 +102,7 @@ num_units                   dw    0000
 archivo_prods               db   "PROD.BIN",00
 handle_prods                dw   0000
 
-; Estructura de venta
+;; Estructura de venta
 dia_venta                   db 01 dup (0)
 mes_venta                   db 01 dup (0)
 anio_venta                  dw 00
@@ -145,7 +147,7 @@ prompt_monto_total          db  "Monto total: ","$"
 ;; VARIABLES PARA EL REPORTE DE VENTAS ;;
 puntero_items               dw  0000h
 
-pgReporteVentas             db  "REP.TXT", 00
+archivo_reporte             db  "REP.TXT", 00
 handle_reporte              dw 0000
 
 separador                   db  "|=================================================|", 0dh, 0ah, "$"
@@ -219,7 +221,7 @@ tam_cierre_td			      db 5
 tam_cierre_body			      db 7  
 tam_cierre_html			      db 7
 tam_titulos_alfa_html	      db 83
-tam_body_Rep_alfa_html        db 8E
+tam_body_Rep_alfa_html        db 6c
 tam_body_exist_html           db 6c
 
 encabezado_html        	    db	"<!DOCTYPE html><html><head>" 
@@ -229,7 +231,7 @@ style_Th_html			    db  "th, td {border: 1px solid black; padding: 8px; text-ali
 cierre_style           	    db  "</style>"
 cierre_head            	    db  "</head>"
 body_Cataologo_html         db  '<body><h1  style="color:red; font-family: Goudy Stout, sans-serif;">Catalogo Completo de Productos</h1>'
-body_Rep_alfa_html		    db	'<body><h1  style="color:red; font-family: Goudy Stout, sans-serif">Reporte de Productos Alfabeticamente</h1>'
+body_Rep_alfa_html		    db	'<body><h1 style="color:red; font-family: Goudy Stout, sans-serif;">Reporte de Productos Alfabeticamente</h1>'
 body_exist_html             db  '<body><h1  style="color:red; font-family: Goudy Stout, sans-serif">Reporte de Productos Sin Existencias</h1>'
 fecha_html				    db	"<p> Reporte generado en -> fecha: "
 hora_html 				    db	"<p> En horario: "
@@ -271,7 +273,7 @@ hora2                       db 01 dup (0)
 minutos2                    db 01 dup (0)
 
 ;; REPORTE DE PRODUCTOS, SIN EXISTENCIAS
-nombre_rep_existencias      db   "FALTA.HTM", 00
+archivo_existencias         db   "FALTA.HTM", 00
 handle_existencias          dw   0000
 
 .CODE
@@ -283,16 +285,23 @@ inicio:
     mov DX, offset new_linea
     mov AH, 09
     int 21
+    mov DX, offset new_linea
+    mov AH, 09
+    int 21
+    mov DX, offset new_linea
+    mov AH, 09
+    int 21
 
     ;; ENCABEZADO INICIAL
     mov DX, offset mensajeInicial
     mov AH, 09                              
     int 21
+    mov DX, offset linea2
+    mov AH, 09                              
+    int 21
 
     ;; Validacion de usuario y clave
     call validar_acceso
-
-    int 03
 
     ;; Verificamos si el nombre de usuario es correcto
     mov SI, offset usuario
@@ -332,10 +341,24 @@ inicio:
 
 
 menu_principal:
+    mov DX, offset new_linea
+    mov AH, 09
+    int 21
+    mov DX, offset new_linea
+    mov AH, 09
+    int 21
     ;; MENU INICIAL
     mov DX, offset menuInicial
     mov AH, 09                              
-    int 21                                  
+    int 21 
+    mov DX, offset linea2
+    mov AH, 09                              
+    int 21  
+
+    ;; Salto de linea
+    mov DX, offset new_linea
+    mov AH, 09                              
+    int 21                            
 
     ;; OPCION
     mov DX, offset prompt
@@ -358,6 +381,10 @@ menu_principal:
     cmp AL, 68 ;;; -> 68 = H
     je menu_herramientas
 
+    ;; Comparamos el valor ingresado con S, para salir del programa
+    cmp AL, 73 ;;; -> 73 = S
+    je terminar
+
     ;; Si no es niguna de las opciones
     jmp menu_principal
 
@@ -366,7 +393,16 @@ menu_principal:
 ;;; MENU PRODUCTOS
 menu_productos:
     ;; Encabezado del menu de productos --> MENU PRODUCTOS
+    mov DX, offset new_linea
+    mov AH, 09                              
+    int 21
+    mov DX, offset new_linea
+    mov AH, 09                              
+    int 21
     mov DX, offset titulo_producto
+    mov AH, 09                              
+    int 21
+    mov DX, offset linea3
     mov AH, 09                              
     int 21
     mov DX, offset new_linea
@@ -380,9 +416,6 @@ menu_productos:
     mov DX, offset ingresar_prod
     mov AH, 09                              
     int 21
-    mov DX, offset editar_prod
-    mov AH, 09                              
-    int 21
     mov DX, offset borrar_prod
     mov AH, 09                              
     int 21
@@ -390,17 +423,22 @@ menu_productos:
     mov AH, 09                              
     int 21
 
-    ;; Leer opcion
-    mov AH, 08
-    int 21
-
     mov DX, offset new_linea
     mov AH, 09                              
     int 21
-
+    mov DX, offset linea2
+    mov AH, 09                              
+    int 21
+    mov DX, offset new_linea
+    mov AH, 09                              
+    int 21
     ;; OPCION
     mov DX, offset prompt
     mov AH, 09                              
+    int 21
+    
+    ;; Leer opcion
+    mov AH, 08
     int 21
 
     ;; Comparamos el valor ingresado con B, para borrar un producto
@@ -412,7 +450,7 @@ menu_productos:
     je ingresar_producto_archivo
 
     ;; Comparamos el valor ingresado con M, para mostrar un producto
-    cmp AL, 6d ;;; -> 65 = E
+    cmp AL, 6d ;;; -> 6d = M
     je mostrar_productos_archivo
 
     ;; Si se presiona la R, se regresa al menu principal
@@ -425,10 +463,13 @@ menu_productos:
     ;; PEDIR CODIGO DEL PRODUCTO
     ingresar_producto_archivo:
         ;; Imprimir encabeza de ingreso de producto
+        mov DX, offset new_linea
+        mov AH, 09
+        int 21
         mov DX, offset titulo_prod
         mov AH, 09
         int 21
-        mov DX, offset sub2_prod
+        mov DX, offset linea3
         mov AH, 09
         int 21
         mov DX, offset new_linea
@@ -724,9 +765,18 @@ menu_productos:
         mov DX, offset new_linea
         mov AH, 09
         int 21
+        mov DX, offset new_linea
+        mov AH, 09
+        int 21
+        mov DX, offset new_linea
+        mov AH, 09
+        int 21
 
         ;; Salto de linea
         mov DX, offset prods_registrados
+        mov AH, 09
+        int 21
+        mov DX, offset linea3
         mov AH, 09
         int 21
 
@@ -786,6 +836,25 @@ menu_productos:
 
     ;; MENU PARA ELIMINAR UN PRODUCTO
     eliminar_producto_archivo:
+
+        mov DX, offset new_linea
+        mov AH, 09
+        int 21
+        mov DX, offset new_linea
+        mov AH, 09
+        int 21
+        mov DX, offset new_linea
+        mov AH, 09
+        int 21
+        mov DX, offset eliminar_registrados
+        mov AH, 09
+        int 21
+        mov DX, offset linea3
+        mov AH, 09
+        int 21
+        mov DX, offset new_linea
+        mov AH, 09
+        int 21
 
         mov DX, 0000
         mov [puntero_temp], DX
@@ -913,10 +982,16 @@ menu_productos:
 
 ;;; MENU VENTAS
 menu_ventas:
+    mov DX, offset new_linea
+    mov AH, 09                              
+    int 21
+    mov DX, offset new_linea
+    mov AH, 09                              
+    int 21
     mov DX, offset titulo_venta
     mov AH, 09                              
     int 21
-    mov DX, offset sub_ven
+    mov DX, offset linea3
     mov AH, 09                              
     int 21
 
@@ -930,6 +1005,13 @@ menu_ventas:
     ;; Salto de linea
     mov DX, offset new_linea
     mov AH, 09
+    int 21
+
+    mov DX, offset linea2
+    mov AH, 09
+    int 21
+    mov DX, offset new_linea
+    mov AH, 09                              
     int 21
     mov DX, offset prompt
     mov AH, 09
@@ -955,16 +1037,17 @@ menu_ventas:
         ;; Salto de linea
         mov DX, offset new_linea
         mov AH, 09
-        int 21          
-
-        mov DX, offset linea
-        mov AH, 09
         int 21
-        ;; Salto de linea
         mov DX, offset new_linea
         mov AH, 09
         int 21
-
+        mov DX, offset titulo_vent
+        mov AH, 09
+        int 21     
+        mov DX, offset linea3
+        mov AH, 09
+        int 21
+        
         ;; Limpiamos el contador de itemas a 0
         mov DL, 0000
         mov [cont_items_venta], DL
@@ -1041,9 +1124,6 @@ menu_ventas:
             ;; Solicitamos el ingreso del codigo
             leer_codigo_venta:
                 ;; Salto de linea
-                mov DX, offset new_linea
-                mov AH, 09
-                int 21 
                 mov DX, offset prompt_code
                 mov AH, 09
                 int 21 
@@ -1118,16 +1198,7 @@ menu_ventas:
                 je ciclo_encontrar_producto_venta
 
                 ;; Verificamos el codigo temporal con el codigo ingresado
-
                 mov DX, offset new_linea
-                mov AH, 09
-                int 21
-
-                ; mov DX, offset codigo_venta_temp
-                ; mov AH, 09
-                ; int 21
-
-                mov DX, offset codigo_venta
                 mov AH, 09
                 int 21
 
@@ -1168,10 +1239,6 @@ menu_ventas:
 
             ;; Pedimos las unidades
             leer_unidades_venta:
-                ;; Salto de linea
-                mov DX, offset new_linea
-                mov AH, 09
-                int 21
                 mov DX, offset prompt_units
                 mov AH, 09
                 int 21
@@ -1472,14 +1539,23 @@ menu_ventas:
 
 ;;; MENU HERRAMIENTAS
 menu_herramientas:
+    mov DX, offset new_linea
+    mov AH, 09                              
+    int 21
+    mov DX, offset new_linea
+    mov AH, 09                              
+    int 21
     mov DX, offset titulo_herramientas
     mov AH, 09                              
     int 21
-    mov DX, offset sub_her
+    mov DX, offset linea3
+    mov AH, 09                              
+    int 21
+    mov DX, offset new_linea
     mov AH, 09                              
     int 21
 
-    ;; OPciones del menu
+    ;; Opciones del menu
     mov DX, offset reporte_ventas
     mov AH, 09                              
     int 21
@@ -1496,10 +1572,12 @@ menu_herramientas:
     mov AH, 09                              
     int 21
 
-    ;; Leer opcion
-    mov AH, 08
+    mov DX, offset new_linea
+    mov AH, 09                              
     int 21
-
+    mov DX, offset linea2
+    mov AH, 09                              
+    int 21
     mov DX, offset new_linea
     mov AH, 09                              
     int 21
@@ -1507,6 +1585,10 @@ menu_herramientas:
     ;; OPCION
     mov DX, offset prompt
     mov AH, 09                              
+    int 21
+
+    ;; Leer opcion
+    mov AH, 08
     int 21
 
     ;; Comparamos el valor ingresado con V, para generar el reporte de ventas
@@ -1605,7 +1687,7 @@ imprimir_estructura:
                     int 21
 
     ret
-;;;;;;;;;;          Subrutina numAcadena          ;;;;;;;;;;
+;;;;;;;;;;          Subrutina cadenaAnum          ;;;;;;;;;;
 ;; ENTRADAS
 ;;        o AX -> numero a convertir
 ;; SALIDAS
@@ -1916,7 +1998,7 @@ generar_reporte_ventas:
 
     ;; Creamos el archivo para el registro de ventas
     mov CX, 0000
-    mov DX, offset pgReporteVentas
+    mov DX, offset archivo_reporte
     mov AH, 3c
     int 21
 
@@ -3234,7 +3316,7 @@ generar_reporte_sin_existencias:
 
     mov AH, 3c
     mov CX, 0000
-    mov DX, offset nombre_rep_existencias
+    mov DX, offset archivo_existencias    
     int 21
     ;; el file handle se almacena en Ax 
     mov [handle_existencias], AX
