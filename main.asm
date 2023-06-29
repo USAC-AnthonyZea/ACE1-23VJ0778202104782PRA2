@@ -28,7 +28,7 @@ estado                      db  00
 espacio_leido               db  00
 tam_linea_leida             db  00
 
-;; Variable num, que almacenara los| datos numericos
+;; Variable num, que almacenara los datos numericos
 numero                      db   05 dup (30)
 
 ;; Nueva linea
@@ -112,15 +112,15 @@ minuto_venta                db 01 dup (0)
 codigo_venta_temp           db 05 dup (0)
 unidades_venta              db 05 dup (0)
 
-bytes_items                 db  46 dup (0)
-direccion_item              dw  0000
+cantidad_bytes_items        db  46 dup (0)
+offset_item                 dw  0000
 
 codigo_venta                db 05 dup (0)
 descripcion_venta           db 21 dup (0)
 
 ;; Variables numericas para las ventas
-num_precioVenta             dw  0000
-num_unidadesVenta           dw  0000
+num_precio_venta            dw  0000
+num_unidades_venta          dw  0000
 num_cantidad    	        dw  0000
 num_monto   	            dw  0000
 num_monto_total             dw  0000
@@ -150,35 +150,35 @@ puntero_items               dw  0000h
 archivo_reporte             db  "REP.TXT", 00
 handle_reporte              dw 0000
 
-separador                   db  "|=================================================|", 0dh, 0ah, "$"
-    separadorSize           equ  $-separador
-separadorSimple             db   "|-------------------------------------------------|", 0dh, 0ah, "$"
-    separadorSimpleSize     equ  $-separadorSimple
+separador                    db  "|=================================================|", 0dh, 0ah, "$"
+    separador_tam            equ  $-separador
+separador_simple             db   "|-------------------------------------------------|", 0dh, 0ah, "$"
+    separador_simple_tam     equ  $-separador_simple
 
 ;; Variables para fecha y hora en reportes
-espacioBlanco               db  " "
+espacio_vacio               db  " "
 hora_actual                 db "00:00:00"
-    horaActualSize          equ $-hora_actual
+    tam_hora_actual         equ $-hora_actual
     dia_actual              db 01 dup (0)
     mes_actual              db 01 dup (0)
     anio_actual             dw 00
-    separadorFecha          db "/", 00
-    separadorHora           db ":", 00
+    diagonal_fecha          db "/", 00
+    puntos_hora           db ":", 00
 
-txtFecha                    db "Fecha: "
-    txtFechaSize            equ $-txtFecha
+txt_fecha                    db "Fecha: "
+    txt_fecha_tam            equ $-txt_fecha
 
-txtMonto                    db "Monto: "
-    txtMontoSize            equ $-txtMonto
+txt_monto                    db "Monto: "
+    txt_monto_tam            equ $-txt_monto
 
-txtUltimasVentas            db  "Ultimas ventas: ", 0ah
-    txtUltimasVentasSize    equ $-txtUltimasVentas
+txt_ultimas_ventas            db  "Ultimas ventas: ", 0ah
+    txt_ultimas_ventas_tam    equ $-txt_ultimas_ventas
 
-txtMayorMonto              db "Venta con mayor monto: ", 0ah
-    txtMayorMontoSize       equ $-txtMayorMonto
+txt_mayor_monto              db "Venta con mayor monto: ", 0ah
+    txt_mayor_monto_tam       equ $-txt_mayor_monto
 
-txtMenorMonto              db "Venta con menor monto: ", 0ah
-    txtMenorMontoSize       equ $-txtMenorMonto
+txt_menor_monto              db "Venta con menor monto: ", 0ah
+    txt_menor_monto_tam       equ $-txt_menor_monto
 
     fecha_mayor             db 06h dup (0)
     fecha_menor             db 06h dup (0)
@@ -186,9 +186,9 @@ txtMenorMonto              db "Venta con menor monto: ", 0ah
     num_monto_mayor         dw 0000
     num_monto_menor         dw 0000
 
-    cantidadVentas          dw 0000
+    cantidad_ventas          dw 0000
 
-    offsetReporteVentas     dw 0000
+    direccion_reporte_ventas dw 0000
 
 ;;; MENU HERRAMIENTAS
 mensaje_reportes            db "REPORTE GENERADO EXISTOSAMENTE", 0a, "$"
@@ -1023,7 +1023,7 @@ menu_ventas:
 
     ;; Si se presiona la I, se accede al menu registrar_venta
     cmp AL, 69 
-    je registrar_ventas	
+    je registro_ventas	
 
     ;; Si se presiona la R, se regresa al menu principal
     cmp AL, 72 
@@ -1033,7 +1033,7 @@ menu_ventas:
     jmp menu_ventas
 
 
-    registrar_ventas:
+    registro_ventas:
         ;; Salto de linea
         mov DX, offset new_linea
         mov AH, 09
@@ -1184,7 +1184,7 @@ menu_ventas:
                 ;; Posicionamos el puntero en el precio de productos
                 mov bx, [handle_prods]
                 mov cx, 04h
-                mov dx, offset num_precioVenta
+                mov dx, offset num_precio_venta
                 mov ah, 3f
                 int 21h
 
@@ -1216,7 +1216,7 @@ menu_ventas:
                 jmp ciclo_encontrar_producto_venta
 
             verificar_stock:
-                mov AX, [num_unidadesVenta]
+                mov AX, [num_unidades_venta]
                 cmp AX, 0000
                 jne leer_unidades_venta                 ; Ingresamos aqui, en caso AX no es igual a 0
                 
@@ -1269,7 +1269,7 @@ menu_ventas:
                 ;; Convertimos las unidades a numero
                 mov DI, offset num_cantidad
                 call cadenaAnum
-                mov [num_unidadesVenta], AX
+                mov [num_unidades_venta], AX
 
                 ;; Limpiamos la variable de las unidades
                 mov DI, offset num_cantidad
@@ -1278,7 +1278,7 @@ menu_ventas:
 
         verificar_existencias_disponibles:
             mov AX, [num_cantidad]
-            cmp AX, [num_unidadesVenta]
+            cmp AX, [num_unidades_venta]
             jl sin_existencias_disponibles
             jmp ubicar_producto
         
@@ -1313,7 +1313,7 @@ menu_ventas:
                 ;; Posicionamos el puntero en el precio del producto
                 mov BX, [handle_prods]
                 mov CX, 04
-                mov DX, offset num_precioVenta
+                mov DX, offset num_precio_venta
                 mov AH, 3f
                 int 21
 
@@ -1354,9 +1354,9 @@ menu_ventas:
             int 21
 
             ;; Restar la cantidad de unidades vendidas ingresadas
-            mov AX, [num_unidadesVenta]
+            mov AX, [num_unidades_venta]
             sub AX, [num_cantidad]
-            mov [num_unidadesVenta], AX
+            mov [num_unidades_venta], AX
 
             ;; Escribimos el nuevo contenido con las unidades restadas
             mov CX, 2a
@@ -1371,8 +1371,8 @@ menu_ventas:
 
         calcular_nuevo_monto:
             ;; Multiplicamos los precios por las unidades para obtener el monto
-            mov AX, [num_precioVenta]
-            mul num_unidadesVenta                                        ; ax = ax * numeroUnidadesVenta
+            mov AX, [num_precio_venta]
+            mul num_unidades_venta                                       ; ax = ax * numeroUnidadesVenta
             mov [num_monto], AX
 
             ;; Salto de linea
@@ -1418,13 +1418,13 @@ menu_ventas:
             mov [puntero_items], AX
             
             ;; 1. Obtenemos la direccion para escribir el item
-            mov CX, offset bytes_items                              ; direccionItem = offset bytesItems + punteroItems
+            mov CX, offset cantidad_bytes_items                              ; direccionItem = offset bytesItems + punteroItems
             mov BX, [puntero_items]
             add CX, BX
-            mov [direccion_item], CX
+            mov [offset_item], CX
 
             ;; 2. Copiamos el codigo del item
-            mov SI, [direccion_item]
+            mov SI, [offset_item]
             mov DI, offset codigo_venta_temp
             mov CH, 00
             mov CL, 0005
@@ -1456,9 +1456,8 @@ menu_ventas:
             mov CX, 0005
             call memset
 
-            ;; Limpiamos la variable de las unidades de la venta (num_unidadesVenta
-            mov DX, 0000
-            mov [num_unidadesVenta], DX
+            ;; Limpiamos la variable de las unidades de la venta (num_unidades_venta            mov DX, 0000
+            mov [num_unidades_venta], DX
 
             ;; Limpiamos la variable del monto
             mov DX, 0000
@@ -1499,7 +1498,7 @@ menu_ventas:
             ;; Escribimos los items
             mov BX, [handle_ventas]
             mov CX, 46
-            mov DX, offset bytes_items
+            mov DX, offset cantidad_bytes_items
             mov AH, 40
             int 21
 
@@ -1512,10 +1511,10 @@ menu_ventas:
 
             ;; Limpiamos la variable de la direccion del item
             mov DX, 0000
-            mov [direccion_item], DX
+            mov [offset_item], DX
 
-            ;; Limpiamos la variable de los bytes_items
-            mov DI, offset bytes_items
+            ;; Limpiamos la variable de los cantidad_bytes_items
+            mov DI, offset cantidad_bytes_items
             mov CX, 0046
             call memset
 
@@ -2007,18 +2006,18 @@ generar_reporte_ventas:
     mov BX, [handle_reporte]
 
     ;; Escribimos la fecha y hora en el reporte
-    call escribir_fecha_hora_reporte_txt
+    call ingresar_fecha_hora_reporte_txt
 
     ;; Escribimos el separador de las secciones
-    mov CX, separadorSize
+    mov CX, separador_tam 
     dec CX
     mov DX, offset separador
     mov AH, 40
     int 21
 
     ;; Seccion 1: Ultimas 5 ventas
-    mov CX, txtUltimasVentasSize
-    mov DX, offset txtUltimasVentas
+    mov CX, txt_ultimas_ventas_tam
+    mov DX, offset txt_ultimas_ventas
     mov AH, 40
     int 21
 
@@ -2041,7 +2040,7 @@ generar_reporte_ventas:
 
     ;; Reiniciamos el contador de ventas
     mov AX, 0000
-    mov [cantidadVentas], AX
+    mov [cantidad_ventas], AX
 
     ;; Leemos el archivo de ventas
     ;; 1. Guardamos los datos de la venta con mayor costo y menor costo
@@ -2056,7 +2055,7 @@ generar_reporte_ventas:
         ;; Posicionamos el puntero en los bytes de los items
         mov BX, [handle_ventas]
         mov CX, 46
-        mov DX, offset bytes_items
+        mov DX, offset cantidad_bytes_items
         mov AH, 3f
         int 21
 
@@ -2072,9 +2071,9 @@ generar_reporte_ventas:
         je ciclo_1_ventas_fin
 
         ;; Aumentar el contador de las ventas
-        mov AX, [cantidadVentas]
+        mov AX, [cantidad_ventas]
         inc AX
-        mov [cantidadVentas], AX
+        mov [cantidad_ventas], AX
 
         ;; Determinamos si se esta en la primera venta
         cmp AX, 0001
@@ -2146,29 +2145,29 @@ generar_reporte_ventas:
     ;; Determinamos la cantidad de ventas a mostrar en el reporte
     
     ;; 1. Si hay de 1 a 5 ventas se muestran todas
-    mov AX, [cantidadVentas]
+    mov AX, [cantidad_ventas]
     cmp AX, 0005
-    jle offset_todas_las_ventas
+    jle direccion_todas_las_ventas
 
     ;; 2. Si hay mas de 5 ventas solo mostramos las ultimas 5
-    jmp offset_ultimas_ventas
+    jmp direccion_ultimas_ventas
 
-    offset_todas_las_ventas:
+    direccion_todas_las_ventas:
         mov AX, 0000h
-        mov [offsetReporteVentas], AX
+        mov [direccion_reporte_ventas], AX
         jmp mostrar_ventas
 
-    offset_ultimas_ventas:
+    direccion_ultimas_ventas:
         ;; Calculamos el offset para mostrar las ultimas 5 ventas       CantidadDeVentas - 5
-        mov AX, [cantidadVentas]
+        mov AX, [cantidad_ventas]
         sub AX, 0005
-        mov [offsetReporteVentas], AX
+        mov [direccion_reporte_ventas], AX
         
         ;; 2. Multiplicamos por el tamaño de cada venta
-        mov AX, [offsetReporteVentas]
+        mov AX, [direccion_reporte_ventas]
         mov BX, 4Eh
         mul BX
-        mov [offsetReporteVentas], AX
+        mov [direccion_reporte_ventas], AX
 
         jmp mostrar_ventas
 
@@ -2176,12 +2175,12 @@ generar_reporte_ventas:
         ;; Movemos el puntero del archivo con la posicion calculada
         mov AL, 00h
         mov BX, [handle_ventas]
-        mov CX, [offsetReporteVentas]
+        mov CX, [direccion_reporte_ventas]
         mov DX, 0000
         mov AH, 42
         int 21
 
-        ciclo_mostrar_ventas:
+        ciclo_ver_ventas:
             ;; Posicionamos el puntero en la fecha de la venta	
             mov BX, [handle_ventas]
             mov CX, 6h
@@ -2192,7 +2191,7 @@ generar_reporte_ventas:
             ;; Posicionamos el puntero en los bytes de las ventas
             mov BX, [handle_ventas]
             mov CX, 46h
-            mov DX, offset bytes_items
+            mov DX, offset cantidad_bytes_items
             mov AH, 3f
             int 21
 
@@ -2205,25 +2204,25 @@ generar_reporte_ventas:
 
             ;; Determinamos si ya se finalizo de leer el archivo
             cmp AX, 0000
-            je ciclo_mostrar_ventas_fin
+            je ciclo_ver_ventas_final
 
             ;; Escribimos la VENTA en el archivo .TXT ;;
             ;; Escribimos el separador
             mov BX, [handle_reporte]
-            mov CX, separadorSimpleSize
-            mov DX, offset separadorSimple
+            mov CX, separador_simple_tam
+            mov DX, offset separador_simple
             dec CX
             mov AH, 40
             int 21
 
             ;; 1. Escribimos la fecha de la venta
-            reporte_ventas_escribir_fecha:
-                call escribir_fecha_txt
+            reporte_ventas_ingresar_fecha:
+                call ingresar_fecha_txt
             
             ;; 2. Escribimos el monto de la venta
-            reporte_ventas_escribir_monto:
-                mov CX, txtMontoSize
-                mov DX, offset txtMonto
+            reporte_ventas_ingresar_monto:
+                mov CX, txt_monto_tam
+                mov DX, offset txt_monto
                 mov AH, 40
                 int 21
 
@@ -2246,28 +2245,28 @@ generar_reporte_ventas:
                 int 21
             
             ; Continuar con la siguiente venta
-            jmp ciclo_mostrar_ventas
+            jmp ciclo_ver_ventas
 
-        ciclo_mostrar_ventas_fin:
+        ciclo_ver_ventas_final:
             ;; Escribimos el separador
             mov BX, [handle_reporte]
-            mov CX, separadorSize
+            mov CX, separador_tam 
             mov DX, offset separador
             dec CX
             mov AH, 40
             int 21
 
-    escribir_venta_mayor:
+    ingresar_venta_mayor:
         ;; Escribir la venta con el mayor monto
         mov BX, [handle_reporte]
-        mov CX, txtMayorMontoSize
-        mov DX, offset txtMayorMonto
+        mov CX, txt_mayor_monto_tam
+        mov DX, offset txt_mayor_monto
         mov AH, 40
         int 21
 
         ;; Escribimos el monto
-        mov CX, txtMontoSize
-        mov DX, offset txtMonto
+        mov CX, txt_monto_tam
+        mov DX, offset txt_monto
         mov AH, 40
         int 21
 
@@ -2294,7 +2293,7 @@ generar_reporte_ventas:
         mov CX, 06
         call copiar_variable
         
-        call escribir_fecha_txt
+        call ingresar_fecha_txt
         
         ;; Escribir nueva linea
         mov CX, 2h
@@ -2304,23 +2303,23 @@ generar_reporte_ventas:
 
         ;; Escribimos el separador
         mov BX, [handle_reporte]
-        mov CX, separadorSize
+        mov CX, separador_tam 
         mov DX, offset separador
         dec CX
         mov AH, 40
         int 21
 
-    escribir_venta_menor:
+    ingresar_venta_menor:
         ;; Escribimos la venta con el mayor
         mov BX, [handle_reporte]
-        mov CX, txtMenorMontoSize
-        mov DX, offset txtMenorMonto
+        mov CX, txt_menor_monto_tam
+        mov DX, offset txt_menor_monto
         mov AH, 40
         int 21
 
         ;; Escribimos el apartado del monto
-        mov CX, txtMontoSize
-        mov DX, offset txtMonto
+        mov CX, txt_monto_tam
+        mov DX, offset txt_monto
         mov AH, 40
         int 21
 
@@ -2347,7 +2346,7 @@ generar_reporte_ventas:
         mov CX, 06h
         call copiar_variable
         
-        call escribir_fecha_txt
+        call ingresar_fecha_txt
         
         ;; Escribir nueva linea
         mov CX, 2h
@@ -2357,13 +2356,13 @@ generar_reporte_ventas:
 
         ;; EscribiMOS el separador
         mov BX, [handle_reporte]
-        mov CX, separadorSize
+        mov CX, separador_tam 
         mov DX, offset separador
         dec CX
         mov AH, 40
         int 21
 
-    call reiniciar_variables_ventas
+    call limpiar_variables_ventas
 
     ;; Cerramos el archivo de reporte
     mov BX, [handle_reporte]
@@ -2499,7 +2498,7 @@ generar_reporte_alfabetico:
     ;; Almacenamos el file handle
     mov [handle_prods], AX
 
-    ciclo_mostrar_rep_alfabetico:
+    ciclo_ver_reporte_alfabetico:
         ;; 1. Leer 26h bytes del archivo de productos
         mov BX, [handle_prods]
         mov CX, 26                                              ;; leer 26h bytes
@@ -2516,12 +2515,12 @@ generar_reporte_alfabetico:
 
         ;; 3. Verificar que no sea nulo, si es termina
         cmp AX, 00
-        je escribir_letra_cantidad
+        je ingresar_letra_cantidad
 
         ;; 4. Ver si es producto válido
         mov AL, 00
         cmp [cod_prod], AL
-        je ciclo_mostrar_rep_alfabetico
+        je ciclo_ver_reporte_alfabetico
 
         ;; 5. Comparar el primer caracter del nombre con la letra actual
         mov SI, offset cod_name
@@ -2529,21 +2528,21 @@ generar_reporte_alfabetico:
         mov CX, 01h
         call cadenas_iguales
         cmp DL, 0ffh
-        je incrementar_contador
+        je aumentar_contador
 
         ;; 6. Si no es igual, repetimos el ciclo
-        jmp ciclo_mostrar_rep_alfabetico
+        jmp ciclo_ver_reporte_alfabetico
 
         ;; 7. Si es igual, incrementamos el contador
-        incrementar_contador:
+        aumentar_contador:
             mov AL, [contador]
             inc AL
             mov [contador], AL
-            jmp ciclo_mostrar_rep_alfabetico
+            jmp ciclo_ver_reporte_alfabetico
 
-        jmp ciclo_mostrar_rep_alfabetico
+        jmp ciclo_ver_reporte_alfabetico
 
-    fin_rep_alfabetico:
+    finalizar_reporte_alfabetico:
         ;; Se escribe </table>
         mov BX, [handle_alfabetico]
         mov AH, 40
@@ -2697,7 +2696,7 @@ generar_reporte_alfabetico:
 
         jmp menu_herramientas
 
-    escribir_letra_cantidad:
+    ingresar_letra_cantidad:
         ;; Fila <tr> 
         mov BX, [handle_alfabetico]
         mov AH, 40
@@ -2740,10 +2739,10 @@ generar_reporte_alfabetico:
         ;; Escribimos la cantidad
         mov AL, [contador]
         cmp AL, 0000
-        je escribir_variable_cero
+        je ingresar_variable_cero
         jmp convertir_variable
 
-        escribir_variable_cero:
+        ingresar_variable_cero:
             mov al, 30h
             mov [numero], al
             mov al, 30h
@@ -2754,7 +2753,7 @@ generar_reporte_alfabetico:
             mov [numero + 3], al
             mov al, 30h
             mov [numero + 4], al
-            jmp escribir_variable
+            jmp ingresar_variable
 
         convertir_variable:
             ;; Convertimos el precio a cadena
@@ -2762,7 +2761,7 @@ generar_reporte_alfabetico:
             mov AH, 00
             call numAcadena
 
-        escribir_variable:
+        ingresar_variable:
             ;; Escribimos el precio
             mov BX, [handle_alfabetico]
             mov CX, 02
@@ -2791,11 +2790,11 @@ generar_reporte_alfabetico:
 
         ;; Comparamos que la letra actual sea menor o igual a Z 
         cmp letra_actual, 7A                                                ;7A = Z  
-        jb menor_igual 
+        jb si_es_menor_igual 
 
-        jmp fin_rep_alfabetico
+        jmp finalizar_reporte_alfabetico
 
-    menor_igual:
+    si_es_menor_igual:
         inc letra_actual  
                                                         ; incrementa la letra actual en 1 A,B... 
         ;; Inicializamos el contador en 0
@@ -2810,7 +2809,7 @@ generar_reporte_alfabetico:
         int 21h
 
         ;; Ciclo para cambiar la letra e ir avanzando
-        jmp ciclo_mostrar_rep_alfabetico
+        jmp ciclo_ver_reporte_alfabetico
 
         ret
 
@@ -2930,7 +2929,7 @@ generar_catalogo_completo:
 
 	mov [handle_prods], AX
 
-    ciclo_mostrar_catologo:
+    ciclo_ver_catologo:
 
         ;; Leemos el archivo
         mov BX, [handle_prods]
@@ -2948,19 +2947,19 @@ generar_catalogo_completo:
 
         ;; verificar que no sea nulo, si es termina 
         cmp AX, 00
-        je fin_mostrar_catologo
+        je terminar_mostrar_catologo
 
         ;; Verificamos que el producto sea un produto valido
         mov AL, 00
         cmp [cod_prod], AL
-        je ciclo_mostrar_catologo
+        je ciclo_ver_catologo
 
         call imprimir_estructura_html
 
-        jmp ciclo_mostrar_catologo
+        jmp ciclo_ver_catologo
         
 
-    fin_mostrar_catologo:
+    terminar_mostrar_catologo:
 
         ;; Ecribimos </table>
         mov BX, [handle_catalogo]
@@ -3137,17 +3136,17 @@ generar_catalogo_completo:
         ;; Inicializamos el contador en 0 
         mov SI, 0000
 
-    ciclo_escribir_codigo:
+    ciclo_ingresar_codigo:
         mov DI, DX
         mov AL, [DI]
 
         ;; Si es nulo, accede a escribir la descripcion 
         cmp AL, 00
-        je escribir_descripcion
+        je ingresar_descripcion
 
         ;;v Si no es nuelo, y esta en el ragno accede a escribir descripcion
         cmp SI, 0006
-        je escribir_descripcion
+        je ingresar_descripcion
 
         mov CX, 0001
         mov BX, [handle_catalogo]
@@ -3157,9 +3156,9 @@ generar_catalogo_completo:
         inc DX 
         inc SI 
 
-        jmp ciclo_escribir_codigo
+        jmp ciclo_ingresar_codigo
 
-    escribir_descripcion:
+    ingresar_descripcion:
         ;; Escribimos columna </td>
         mov BX, [handle_catalogo]
         mov AH, 40
@@ -3179,18 +3178,18 @@ generar_catalogo_completo:
         mov DX, offset cod_name
         mov SI, 0000
 
-    ciclo_escribir_descripcion:
+    ciclo_ingresar_descripcion:
 
         mov DI, DX
         mov AL, [DI]
 
         ;; Si es nulo 
         cmp AL, 00
-        je escribir_precio
+        je ingresar_precio
 
         ;; Si esta lleno
         cmp SI, 0021
-        je escribir_precio
+        je ingresar_precio
     
         mov CX, 0001
         mov BX, [handle_catalogo]
@@ -3199,9 +3198,9 @@ generar_catalogo_completo:
 
         inc DX  
         inc SI 
-        jmp ciclo_escribir_descripcion
+        jmp ciclo_ingresar_descripcion
 
-    escribir_precio:
+    ingresar_precio:
         ;; Columna </td>
         mov BX, [handle_catalogo]
         mov AH, 40
@@ -3224,18 +3223,18 @@ generar_catalogo_completo:
         mov DX, offset numero
         mov SI, 0000
 
-    ciclo_escribir_precio: 
+    ciclo_ingresar_precio: 
 
         mov DI, DX
         mov AL, [DI]
 
         ;; Si es nulo
         cmp AL, 00
-        je escribir_unidades
+        je ingresar_unidades
 
         ;; Si no es nulo 
         cmp SI, 0006
-        je escribir_unidades
+        je ingresar_unidades
     
         mov CX, 0001
         mov BX, [handle_catalogo]
@@ -3244,9 +3243,9 @@ generar_catalogo_completo:
 
         inc DX 
         inc SI 
-        jmp ciclo_escribir_precio
+        jmp ciclo_ingresar_precio
 
-    escribir_unidades:
+    ingresar_unidades:
         ;; Columna </td>
         mov BX, [handle_catalogo]
         mov AH, 40
@@ -3269,17 +3268,17 @@ generar_catalogo_completo:
         mov DX, offset numero
         mov SI, 0000
 
-    ciclo_escribir_unidades:
+    ciclo_ingresar_unidades:
         mov DI, DX
         mov AL, [DI]
 
         ;; Si es nulo 
         cmp AL, 00
-        je cerrar_table
+        je finalizar_tabla
 
         ;; Si no es nulo
         cmp SI, 0006
-        je cerrar_table
+        je finalizar_tabla
     
         mov CX, 0001
         mov BX, [handle_catalogo]
@@ -3288,9 +3287,9 @@ generar_catalogo_completo:
 
         inc DX 
         inc SI 
-        jmp ciclo_escribir_unidades
+        jmp ciclo_ingresar_unidades
 
-    cerrar_table:
+    finalizar_tabla:
         ;; Columna </td>
         mov BX, [handle_catalogo]
         mov AH, 40
@@ -3424,7 +3423,7 @@ generar_reporte_sin_existencias:
 
     mov [handle_prods], AX
 
-        ciclo_mostrar_existentes:
+        ciclo_visualizar_existentes:
             ;; Leeos el archivo
             mov BX, [handle_prods]
             mov CX, 26
@@ -3441,28 +3440,28 @@ generar_reporte_sin_existencias:
 
             ;; Si es nulo 
             cmp AX, 0000
-            je fin_mostrar_existentes
+            je terminar_mostrar_existentes
 
             ;; Si no es nulo
             mov AL, 00
             cmp [cod_prod], AL
 
-            je ciclo_mostrar_existentes						
+            je ciclo_visualizar_existentes						
 
             ;; Nos posicionamos en la descripcion		
             mov DI, offset cod_name
             mov AX, [num_units]
             cmp AX, 0000
 
-            je ir_a_imprimir_esctructura_html			
+            je ir_a_imprimir			
 
-            jmp ciclo_mostrar_existentes
+            jmp ciclo_visualizar_existentes
 
-        ir_a_imprimir_esctructura_html:
+        ir_a_imprimir:
             
-            call imprimir_estructura_html_existencias
+            call imprimir_estructura_existencias_html
             
-        fin_mostrar_existentes:
+        terminar_mostrar_existentes:
             ;; Escribimos </table>
             mov BX, [handle_existencias]
             mov AH, 40
@@ -3493,7 +3492,7 @@ generar_reporte_sin_existencias:
 
             jmp menu_herramientas
 
-        imprimir_estructura_html_existencias:
+        imprimir_estructura_existencias_html:
             ;; Fila <tr> 
             mov BX, [handle_existencias]
             mov AH, 40
@@ -3516,17 +3515,17 @@ generar_reporte_sin_existencias:
             ;;Inicializamos el contador
             mov SI, 0000
 
-        ciclo_escribir_codigo_existencias:
+        ciclo_ingresar_codigo_existencias:
             mov DI, DX
             mov AL, [DI]
 
             ;; Si es nulo
             cmp AL, 00
-            je escribir_descripcion_existencias
+            je ingresar_descripcion_existencias
             
             ;; Si no es nulo 
             cmp SI, 0006
-            je escribir_descripcion_existencias
+            je ingresar_descripcion_existencias
  
             mov CX, 0001
             mov BX, [handle_existencias]
@@ -3536,9 +3535,9 @@ generar_reporte_sin_existencias:
             inc DX 
             inc SI 
 
-            jmp ciclo_escribir_codigo_existencias
+            jmp ciclo_ingresar_codigo_existencias
 
-        escribir_descripcion_existencias:
+        ingresar_descripcion_existencias:
             ;; Columna </td>
             mov BX, [handle_existencias]
             mov AH, 40
@@ -3558,17 +3557,17 @@ generar_reporte_sin_existencias:
             mov DX, offset cod_name
             mov SI, 0000
 
-        ciclo_escribir_descripcion_existencias:
+        ciclo_ingresar_descripcion_existencias:
             mov DI, DX
             mov AL, [DI]
 
             ;; Si es nulo 
             cmp AL, 00
-            je escribir_precio_existencias
+            je ingresar_precio_existencias
 
             ;; Si no es nulo 
             cmp SI, 0021
-            je escribir_precio_existencias
+            je ingresar_precio_existencias
 
             ;; Escribimos 
             mov CX, 0001
@@ -3578,9 +3577,9 @@ generar_reporte_sin_existencias:
 
             inc DX   
             inc SI   
-            jmp ciclo_escribir_descripcion_existencias
+            jmp ciclo_ingresar_descripcion_existencias
 
-        escribir_precio_existencias:
+        ingresar_precio_existencias:
             ;; Columna </td>
             mov BX, [handle_existencias]
             mov AH, 40
@@ -3603,17 +3602,17 @@ generar_reporte_sin_existencias:
             mov DX, offset numero
             mov SI, 0000
 
-        ciclo_escribir_precio_existencias:: 
+        ciclo_ingresar_precio_existencias:: 
             mov DI, DX
             mov AL, [DI]
 
             ;; Si es nulo 
             cmp AL, 00
-            je cerrar_table
+            je finalizar_tabla
 
             ;; Si no es nulo 
             cmp SI, 0006
-            je cerrar_table
+            je finalizar_tabla
 
             ;; Escribimos en el archivio 
             mov CX, 0001
@@ -3623,9 +3622,9 @@ generar_reporte_sin_existencias:
 
             inc DX   
             inc SI   
-            jmp ciclo_escribir_precio_existencias
+            jmp ciclo_ingresar_precio_existencias
 
-        cerrar_table_existencias:
+        finalizar_etiqueta_tabla:
             ;; Columna </td>
             mov BX, [handle_existencias]
             mov AH, 40
@@ -3645,18 +3644,18 @@ generar_reporte_sin_existencias:
             ret
 
 
-;;;;;;;;;;          Subrutina escribir_fecha_hora_reporte_txt         ;;;;;;;;;;
+;;;;;;;;;;          Subrutina ingresar_fecha_hora_reporte_txt         ;;;;;;;;;;
 ;; ENTRADAS
 ;;          o [handle_reporte]: es el handle del archivo de reportes
 ;; SALIDAS
 ;;          o Escribe la hora y la fecha
-escribir_fecha_hora_reporte_txt:
+ingresar_fecha_hora_reporte_txt:
     ;; Escribimos la fecha
-    escribir_fecha_reporte_txt:
+    ingresar_fecha_reporte_txt:
         ;; Escribimos el campo de la fecha
         mov BX, [handle_reporte]
-        mov CX, txtFechaSize
-        mov DX, offset txtFecha
+        mov CX, txt_fecha_tam
+        mov DX, offset txt_fecha
         mov AH, 40
         int 21
 
@@ -3687,7 +3686,7 @@ escribir_fecha_hora_reporte_txt:
         ;; Escribimos el separador
         mov BX, [handle_reporte]
         mov CX, 01h
-        mov DX, offset separadorFecha
+        mov DX, offset diagonal_fecha
         mov AH, 40
         int 21
 
@@ -3709,7 +3708,7 @@ escribir_fecha_hora_reporte_txt:
         ;; Escribimos el separador
         mov BX, [handle_reporte]
         mov CX, 01h
-        mov DX, offset separadorFecha
+        mov DX, offset diagonal_fecha
         mov AH, 40
         int 21
 
@@ -3729,13 +3728,13 @@ escribir_fecha_hora_reporte_txt:
         ;; Escribir espacio en blanco
         mov BX, [handle_reporte]
         mov CX, 01h
-        mov DX, offset espacioBlanco
+        mov DX, offset espacio_vacio
         mov AH, 40
         int 21
 
     ;; EscribiMOS la hora actual
-    escribir_hora_reporte_txt:
-        call convertir_hora_ascii
+    ingresar_hora_reporte_txt:
+        call convertir_hora_texto
         
         ; Escribir la hora
         mov BX, [handle_reporte]
@@ -3754,10 +3753,10 @@ escribir_fecha_hora_reporte_txt:
     ret
 
 
-;;;;;;;;;;          Subrutina convertir_hora_ascii         ;;;;;;;;;;
+;;;;;;;;;;          Subrutina convertir_hora_texto         ;;;;;;;;;;
 ;; ENTRADAS
 ;; SALIDAS
-convertir_hora_ascii:
+convertir_hora_texto:
     mov AH, 2ch
     int 21
     mov AL, CH
@@ -3818,16 +3817,16 @@ convertir_hora_ascii:
 
     ret
 
-;;;;;;;;;;          Subrutina escribir_fecha_txt         ;;;;;;;;;;
+;;;;;;;;;;          Subrutina ingresar_fecha_txt         ;;;;;;;;;;
 ;; ENTRADAS
 ;;      o [dia_venta - minuto_venta]: es la informacion de fecha y hora
 ;; SALIDAS
 ;;      o escribe los caracteres de fecha con formato de fecha y hora
-escribir_fecha_txt:
+ingresar_fecha_txt:
     ;; Escribimos apartado de fecha
     mov BX, [handle_reporte]
-    mov CX, txtFechaSize
-    mov DX, offset txtFecha
+    mov CX, txt_fecha_tam
+    mov DX, offset txt_fecha
     mov AH, 40
     int 21
 
@@ -3849,7 +3848,7 @@ escribir_fecha_txt:
     ;; Escribimos el separador
     mov BX, [handle_reporte]
     mov CX, 01h
-    mov DX, offset separadorFecha
+    mov DX, offset diagonal_fecha
     mov AH, 40
     int 21
 
@@ -3871,7 +3870,7 @@ escribir_fecha_txt:
     ;; Escribimos el separador
     mov BX, [handle_reporte]
     mov CX, 01h
-    mov DX, offset separadorFecha
+    mov DX, offset diagonal_fecha
     mov AH, 40
     int 21
 
@@ -3891,7 +3890,7 @@ escribir_fecha_txt:
     ;; Escribimos el espacio
     mov BX, [handle_reporte]
     mov CX, 01h
-    mov DX, offset espacioBlanco
+    mov DX, offset espacio_vacio
     mov AH, 40
     int 21
 
@@ -3913,7 +3912,7 @@ escribir_fecha_txt:
     ;; Escribimos la cadena ":"
     mov BX, [handle_reporte]
     mov CX, 01h
-    mov DX, offset separadorHora
+    mov DX, offset puntos_hora
     mov AH, 40
     int 21
 
@@ -3940,10 +3939,10 @@ escribir_fecha_txt:
 
     ret
 
-;;;;;;;;;;          Subrutina escribir_fecha_txt         ;;;;;;;;;;
+;;;;;;;;;;          Subrutina limpiar_variables_ventas         ;;;;;;;;;;
 ;; ENTRADAS
 ;; SALIDAS
-reiniciar_variables_ventas:
+limpiar_variables_ventas:
     ;; Limpiar las variables de fechas (Registro y Reporte)
     mov DI, offset dia_venta
     mov CX, 0006
@@ -3971,9 +3970,8 @@ reiniciar_variables_ventas:
     mov CX, 0026h
     call memset
 
-    ;; Limpiamos la variable num_unidadesVenta
-    mov DX, 0000
-    mov [num_unidadesVenta], DX
+    ;; Limpiamos la variable num_unidades_venta    mov DX, 0000
+    mov [num_unidades_venta], DX
 
     ;; Limpiamos la variable num_monto
     mov DX, 0000
@@ -3988,8 +3986,8 @@ reiniciar_variables_ventas:
     mov cx, 0002
     call memset
 
-    ; Limpiar la variable cantidadVentas
-    mov di, offset cantidadVentas
+    ; Limpiar la variable cantidad_ventas
+    mov di, offset cantidad_ventas
     mov cx, 0002
     call memset
 
